@@ -76,6 +76,26 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/ice-servers")
+async def ice_servers():
+    """Return ICE servers including TURN for NAT traversal."""
+    metered_key = os.getenv("METERED_API_KEY", "")
+    if metered_key:
+        # If Metered API key is set, fetch fresh TURN credentials
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(f"https://nihalturkar.metered.live/api/v1/turn/credentials?apiKey={metered_key}")
+                return {"iceServers": r.json()}
+        except Exception:
+            pass
+    # Fallback: STUN only
+    return {"iceServers": [
+        {"urls": "stun:stun.l.google.com:19302"},
+        {"urls": "stun:stun1.l.google.com:19302"},
+    ]}
+
+
 # ── WebSocket signaling ─────────────────────────────────────────────────────
 
 @app.websocket("/ws/{meeting_id}/{username}")
