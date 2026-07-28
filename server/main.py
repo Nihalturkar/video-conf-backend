@@ -67,7 +67,8 @@ async def join_meeting(data: dict):
     meeting = meetings.get(meeting_id)
     if not meeting:
         return {"error": "Meeting not found"}
-    meeting.add(username)
+    if not meeting.add(username):
+        return {"error": "Name already taken in this meeting"}
     return {"meeting_id": meeting.meeting_id, "participants": meeting.usernames()}
 
 
