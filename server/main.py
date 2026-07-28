@@ -85,7 +85,7 @@ async def ice_servers():
         import httpx
         try:
             async with httpx.AsyncClient() as client:
-                r = await client.get(f"https://nihalturkar.metered.live/api/v1/turn/credentials?apiKey={metered_key}")
+                r = await client.get(f"https://tradehub.metered.live/api/v1/turn/credentials?apiKey={metered_key}")
                 return {"iceServers": r.json()}
         except Exception:
             pass
