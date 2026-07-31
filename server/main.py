@@ -67,8 +67,7 @@ async def join_meeting(data: dict):
     meeting = meetings.get(meeting_id)
     if not meeting:
         return {"error": "Meeting not found"}
-    if not meeting.add(username):
-        return {"error": "Name already taken in this meeting"}
+    meeting.add(username)
     return {"meeting_id": meeting.meeting_id, "participants": meeting.usernames()}
 
 
@@ -79,18 +78,7 @@ async def health():
 
 @app.get("/api/ice-servers")
 async def ice_servers():
-    """Return ICE servers including TURN for NAT traversal."""
-    metered_key = os.getenv("METERED_API_KEY", "")
-    if metered_key:
-        # If Metered API key is set, fetch fresh TURN credentials
-        import httpx
-        try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(f"https://tradehub.metered.live/api/v1/turn/credentials?apiKey={metered_key}")
-                return {"iceServers": r.json()}
-        except Exception:
-            pass
-    # Fallback: STUN only
+    """Return ICE servers for WebRTC."""
     return {"iceServers": [
         {"urls": "stun:stun.l.google.com:19302"},
         {"urls": "stun:stun1.l.google.com:19302"},
@@ -139,6 +127,27 @@ async def ws_endpoint(websocket: WebSocket, meeting_id: str, username: str):
                         "sender": username,
                         "data": data.get("data", {}),
                     })
+
+            elif msg_type == "caption":
+                await manager.broadcast(
+                    meeting_id,
+                    {"type": "caption", "username": username, "text": data.get("text", ""), "final": data.get("final", False)},
+                    exclude=username,
+                )
+
+            elif msg_type == "whiteboard":
+                await manager.broadcast(
+                    meeting_id,
+                    {"type": "whiteboard", "username": username, "action": data.get("action"), "data": data.get("data", {})},
+                    exclude=username,
+                )
+
+            elif msg_type == "poll":
+                await manager.broadcast(
+                    meeting_id,
+                    {"type": "poll", "username": username, "action": data.get("action"), "data": data.get("data", {})},
+                    exclude=None if data.get("action") == "result" else username,
+                )
 
             elif msg_type == "screen-share":
                 await manager.broadcast(
